@@ -4,6 +4,14 @@
 
 #pragma once
 
+
+/**
+ * @brief A class for representing arbitrarily large integers.
+ * 
+ * BigInt is a class that provides a way to represent integers of any size. It supports basic arithmetic operations such as addition, subtraction, multiplication, division, and modulo. 
+ * It also supports comparison operators and output stream operator. 
+ * The class is implemented using a vector of 64-bit unsigned integers to store the digits of the number.
+ */
 class BigInt 
 {
 public:
@@ -16,29 +24,24 @@ public:
     
     std::size_t size() const noexcept;
 
-    BigInt operator+(BigInt& rhs);
-    BigInt operator-(BigInt& rhs);
-    BigInt operator*(BigInt& rhs);
-    BigInt operator/(const BigInt& rhs);
+    BigInt square() noexcept;
+    BigInt longPower(const BigInt& power) noexcept;
 
-    BigInt& operator=(const BigInt& rhs) = default;
-    BigInt& operator=(BigInt&& rhs) noexcept
-    {
-        if(this != &rhs)  // check for self-assignment
-        {
-            m_data = std::move(rhs.m_data);  // use std::move to transfer ownership
-            m_countOfPartsInNumber = rhs.m_countOfPartsInNumber;
-        }
+    BigInt operator +(const BigInt& rhs);
+    BigInt operator -(const BigInt& rhs);
+    BigInt operator *(const BigInt& rhs);
+    BigInt operator /(const BigInt& rhs);
+    BigInt operator %(const BigInt& rhs);
 
-        return *this;   
-    }
+    BigInt& operator =(const BigInt& rhs) = default;
+    BigInt& operator =(BigInt&& rhs) noexcept = default;
 
-    bool operator >  (const BigInt& rhs) const;
-    bool operator <  (const BigInt& rhs) const;
-    bool operator >= (const BigInt& rhs) const;
-    bool operator <= (const BigInt& rhs) const;
-    bool operator == (const BigInt& rhs) const;
-    bool operator != (const BigInt& rhs) const;
+    bool operator > (const BigInt& rhs) const;
+    bool operator < (const BigInt& rhs) const;
+    bool operator >=(const BigInt& rhs) const;
+    bool operator <=(const BigInt& rhs) const;
+    bool operator ==(const BigInt& rhs) const;
+    bool operator !=(const BigInt& rhs) const;
 
     friend std::ostream& operator <<(std::ostream& out, const BigInt& bigInt);
 
@@ -49,8 +52,13 @@ private:
     BigInt longShiftDigitsToHigh(const BigInt& number, const uint_fast64_t widthShift) const noexcept;
     BigInt longShiftBitsToHigh(const BigInt& number, int_fast64_t widthShift) const noexcept;
 
+    std::pair<BigInt, BigInt> longDivMod(const BigInt& rhs) const noexcept;
+
+    std::string binaryString() const noexcept;
+
     std::size_t bitLength() const noexcept;
     void normalize() noexcept;
+    std::string normalize(const std::string& str) const noexcept;
 
     /* magic constants */
     static constexpr std::size_t digitsCountInNumber = 8; // number system divide to the number of bits in one hex ( 64 / 4 )

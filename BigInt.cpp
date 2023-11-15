@@ -28,10 +28,7 @@ BigInt::BigInt(const std::string& bigNumber) : m_countOfPartsInNumber((bigNumber
 
     for(std::size_t i = 0; i < m_countOfPartsInNumber; ++i)
     {
-        if(partsOfNumber.at(i)[0] == '0')
-        {
-            std::reverse(partsOfNumber.at(i).begin(), partsOfNumber.at(i).end());
-        }
+        std::reverse(partsOfNumber.at(i).begin(), partsOfNumber.at(i).end());
         m_data[i] = std::strtoull(partsOfNumber.at(i).data(), nullptr, 16);
     }
 }
@@ -40,16 +37,6 @@ BigInt::BigInt(const uint_fast64_t number) : m_countOfPartsInNumber(1)
 {
     m_data.push_back(number);
 }
-
-// BigInt::BigInt(const BigInt& bigNumber) : m_data(bigNumber.m_data), m_countOfPartsInNumber(bigNumber.m_countOfPartsInNumber)
-// {
-//     ///
-// }
-
-// BigInt::BigInt(BigInt&& bigNumber) noexcept : m_data(bigNumber.m_data), m_countOfPartsInNumber(bigNumber.m_countOfPartsInNumber)
-// {
-//     ///
-// }
 
 std::size_t BigInt::size() const noexcept
 {
@@ -71,35 +58,57 @@ std::vector<std::string> BigInt::splitNumberToParts(const std::string_view& str)
     return splitsStr;
 }
 
-BigInt BigInt::operator+(BigInt& rhs)
+BigInt BigInt::operator+(const BigInt& rhs)
 {
+    BigInt result;
     uint_fast64_t carry = 0;
 
-    if(std::size_t lhsSize = size(); lhsSize > rhs.size())
-        rhs.m_data.resize(lhsSize);
-    else
-        m_data.resize(rhs.size());
-
-    BigInt result;
-    result.m_data.resize(size());
-    
-    for(std::size_t i = 0; i < size(); ++i)
+    auto addResult = [&](const auto& temp)
     {
-        uint_fast64_t temp = m_data[i] + rhs.m_data[i] + carry;
-        result.m_data[i] = (temp & 0xFFFFFFFF);
+        result.m_data.push_back(temp & 0xFFFFFFFF);
         carry = temp >> BigInt::bitsCount;
-    }
+    };
 
-    if(carry > 0)
+    int_fast64_t l1;
+    int_fast64_t l2;
+    
+    auto adder = [&](auto& a, auto& b)
     {
-        result.m_data.push_back(carry);
-    } 
+        for(std::size_t i = 0; i < l1; ++i)
+        {
+            int_fast64_t temp = a.m_data[i] + b.m_data[i] + carry;
+
+            addResult(temp);
+        }
+
+        for(std::size_t i = l1; i < l2; ++i)
+        {
+            int_fast64_t temp = a.m_data[i] + carry;
+
+            addResult(temp);
+        }
+    };
+
+    if(rhs.size() > size())
+    {
+        l1 = size();
+        l2 = rhs.size();
+
+        adder(rhs, *this);
+    }
+    else
+    {
+        l1 = rhs.size();
+        l2 = size();
+
+        adder(*this, rhs);
+    }
 
     result.normalize();
     return result;
 }
 
-BigInt BigInt::operator-(BigInt& rhs)
+BigInt BigInt::operator-(const BigInt& rhs)
 {
     if(rhs > *this) 
     {
@@ -147,14 +156,9 @@ BigInt BigInt::operator-(BigInt& rhs)
     return result;
 }
 
-BigInt BigInt::operator*(BigInt& rhs)
+BigInt BigInt::operator*(const BigInt& rhs)
 {
     BigInt result;
-
-    if(std::size_t lhsSize = m_data.size(); lhsSize > rhs.size())
-        rhs.m_data.resize(lhsSize);
-    else
-        m_data.resize(rhs.size());
 
     for(std::size_t i = 0; i < rhs.size(); ++i)
     {
@@ -168,49 +172,13 @@ BigInt BigInt::operator*(BigInt& rhs)
 
 BigInt BigInt::operator/(const BigInt& rhs)
 {    
-    if(*this == rhs)
-        return BigInt(1);
-
-    int_fast64_t bitLength = rhs.bitLength();
-    BigInt remainder(*this);
-    BigInt quotient(0);
-
-    while(remainder >= rhs)
-    {   
-        int_fast64_t remainderLength = remainder.bitLength();
-        BigInt shiftedDivisor = longShiftBitsToHigh(rhs, remainderLength - bitLength);
-        if(remainder < shiftedDivisor)
-        {
-            remainderLength -= 1;
-            int_fast64_t length = remainderLength - bitLength;
-            shiftedDivisor = longShiftBitsToHigh(rhs, length);
-        }
-
-        remainder = remainder - shiftedDivisor;
-        
-        BigInt temp(1);
-        temp = longShiftBitsToHigh(temp, remainderLength - bitLength);
-        quotient = quotient + temp;
-    }
-
-    return quotient;
+    return longDivMod(rhs).first;
 }
 
-// BigInt& BigInt::operator=(const BigInt& rhs)
-// {
-//     m_data = rhs.m_data;
-//     m_countOfPartsInNumber = rhs.m_countOfPartsInNumber;
-
-//     return *this;
-// }
-
-// BigInt BigInt::operator=(BigInt&& rhs) noexcept
-// {
-//     m_data = rhs.m_data;
-//     m_countOfPartsInNumber = rhs.m_countOfPartsInNumber;
-
-//     return *this;
-// }
+BigInt BigInt::operator%(const BigInt& rhs)
+{
+    return longDivMod(rhs).second;
+}
 
 bool BigInt::operator == (const BigInt& rhs) const
 {
@@ -259,7 +227,31 @@ bool BigInt::operator > (const BigInt& rhs) const
 
 bool BigInt::operator < (const BigInt& rhs) const
 {
-    return (rhs > *this);
+    if(size() == 0 || rhs.size() == 0)
+    {
+        std::cout << "Unknown case" << std::endl;
+        return false;
+    }
+        
+    if(size() < rhs.size())
+        return true;
+    else if(rhs.size() > size())
+        return false;
+
+    int_fast64_t i = m_data.size() - 1;
+    while(i >= 0)
+    {
+        if(m_data.at(i) != rhs.m_data.at(i))
+        {
+            break;
+        }
+        i--;
+    }
+
+    if(i == -1)
+        return false;
+    else
+        return m_data.at(i) < rhs.m_data.at(i);
 }
 
 bool BigInt::operator <= (const BigInt& rhs) const
@@ -277,7 +269,6 @@ BigInt BigInt::longMulOneDigit(const BigInt& lhs, const uint_fast64_t number) co
     BigInt result;
 
     uint_fast64_t carry = 0;
-    // uint_fast64_t remainder = std::pow(2, 32) - 1;
 
     for(std::size_t i = 0; i < lhs.size(); ++i)
     {
@@ -324,7 +315,7 @@ BigInt BigInt::longShiftBitsToHigh(const BigInt& number, int_fast64_t widthShift
 
             for(std::size_t j = result.size() - 1; j > 0; --j)
             {
-                result.m_data[j] = (result.m_data[j] << 1) ^ ((result.m_data[j - 1] >> (BigInt::bitsCount - 1)) & 1) & 0xFFFFFFFF;
+                result.m_data[j] = ((result.m_data[j] << 1) ^ ((result.m_data[j - 1] >> (BigInt::bitsCount - 1)) & 1)) & 0xFFFFFFFF;
             }
             result.m_data[0] = (result.m_data[0] << 1) & 0xFFFFFFFF;
 
@@ -336,6 +327,72 @@ BigInt BigInt::longShiftBitsToHigh(const BigInt& number, int_fast64_t widthShift
     }
     
     result.normalize();
+    return result;
+}
+
+std::pair<BigInt, BigInt> BigInt::longDivMod(const BigInt& rhs) const noexcept
+{
+    if(*this == rhs)
+        return std::make_pair(BigInt(1), BigInt(0));
+
+    int_fast64_t bitLength = rhs.bitLength();
+    BigInt remainder(*this);
+    BigInt quotient(0);
+
+    while(remainder >= rhs)
+    {   
+        int_fast64_t remainderLength = remainder.bitLength();
+        BigInt shiftedDivisor = longShiftBitsToHigh(rhs, remainderLength - bitLength);
+        if(remainder < shiftedDivisor)
+        {
+            remainderLength -= 1;
+            int_fast64_t length = remainderLength - bitLength;
+            shiftedDivisor = longShiftBitsToHigh(rhs, length);
+        }
+
+        remainder = remainder - shiftedDivisor;
+        
+        BigInt temp(1);
+        temp = longShiftBitsToHigh(temp, remainderLength - bitLength);
+        quotient = quotient + temp;
+    }
+
+    return std::make_pair(quotient, remainder);
+}
+
+std::string BigInt::binaryString() const noexcept
+{
+    std::string binaryString;
+    for(const auto& it : m_data)
+    {
+        for(int j = 31; j >= 0; --j)
+        {
+            binaryString += (it & (1 << j)) ? '1' : '0';
+        }
+    }
+
+    return normalize(binaryString);
+}
+
+BigInt BigInt::square() noexcept
+{
+    return (*this) * (*this);
+}
+
+BigInt BigInt::longPower(const BigInt& power) noexcept
+{
+    auto binaryRepresentation = power.binaryString();
+    BigInt result(1);
+
+    for(int64_t i = binaryRepresentation.size() - 1; i >= 0; --i)
+    {
+        if(binaryRepresentation.at(i) == '1')
+            result = result * (*this);
+
+        if(i > 0)
+            *this = this->square();
+    }
+
     return result;
 }
 
@@ -354,15 +411,24 @@ std::size_t BigInt::bitLength() const noexcept
 
 void BigInt::normalize() noexcept
 {
-    while(m_data.back() == 0)
+    if(size() > 0)
     {
-        m_data.pop_back();
+        while(m_data.back() == 0 && m_data.size() > 1)
+        {
+            m_data.pop_back();
+        }
     }
+}
 
-    if(m_data.empty())
-    {
-        m_data.push_back(0);
-    }
+std::string BigInt::normalize(const std::string& str) const noexcept
+{
+   auto binaryString = str;
+    if (std::size_t startPos = binaryString.find_first_not_of('0'); startPos != std::string::npos) 
+        binaryString = binaryString.substr(startPos);
+    else 
+        binaryString = "0"; 
+
+    return binaryString;
 }
 
 std::ostream& operator<<(std::ostream& out, const BigInt& bigInt)
@@ -376,15 +442,17 @@ std::ostream& operator<<(std::ostream& out, const BigInt& bigInt)
 
     out << "Number in hex: ";
 
-    for(auto it = bigInt.m_data.rbegin(); it != bigInt.m_data.rend(); ++it)
-    {
-        std::stringstream stream;
-        stream << std::hex << *it;
-        out << stream.str();
-    }
-    out << std::endl;
+    std::stringstream stream;
+    stream << std::hex << *(bigInt.m_data.rbegin());
+    std::cout << stream.str();
 
-    // доробити вивід нулів для не останньої цифри
+    for(int64_t i = bigInt.size() - 2; i >= 0; --i)
+    {
+        stream.str(std::string());
+        stream << std::hex << bigInt.m_data[i];
+        std::cout << std::setfill('0') << std::setw(8) << stream.str();
+    }
+    std::cout << std::endl;
 
     return out;
 }
