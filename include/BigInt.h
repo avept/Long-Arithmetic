@@ -27,6 +27,8 @@ public:
     BigInt square() noexcept;
     BigInt longPower(const BigInt& power) noexcept;
 
+    int64_t msb() const noexcept;
+
     BigInt operator +(const BigInt& rhs);
     BigInt operator -(const BigInt& rhs);
     BigInt operator *(const BigInt& rhs);

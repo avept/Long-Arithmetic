@@ -14,7 +14,7 @@
 
 BigInt::BigInt() : m_countOfPartsInNumber(0) 
 { 
-    ///
+    /// 
 }
 
 BigInt::BigInt(const std::string& bigNumber) : m_countOfPartsInNumber((bigNumber.size() + digitsCountInNumber - 1) / digitsCountInNumber)
@@ -431,16 +431,27 @@ std::string BigInt::normalize(const std::string& str) const noexcept
     return binaryString;
 }
 
+int64_t BigInt::msb() const noexcept
+{
+    auto binaryStr = binaryString();
+    std::reverse(binaryStr.begin(), binaryStr.end());
+
+    if(int64_t index = binaryStr.rfind("1"); index != std::string::npos)
+        return index;
+    
+    return -1;
+}
+
 std::ostream& operator<<(std::ostream& out, const BigInt& bigInt)
 {
-    out << "Number: ";
-    for(std::size_t i = 0; i < bigInt.size(); ++i)
-    {
-       out << "(2^32)^" << i << " * " << bigInt.m_data.at(i) << " + ";
-    }
-    out << std::endl;
+    // out << "Number: ";
+    // for(std::size_t i = 0; i < bigInt.size(); ++i)
+    // {
+    //    out << "(2^32)^" << i << " * " << bigInt.m_data.at(i) << " + ";
+    // }
+    // out << std::endl;
 
-    out << "Number in hex: ";
+    // out << "Number in hex: ";
 
     std::stringstream stream;
     stream << std::hex << *(bigInt.m_data.rbegin());
