@@ -56,11 +56,11 @@ make -j4
 
 ### Usage
 
-To use LongArithmeticLib in your own project, follow these steps:
+To use LongArithmetic in your own project, follow these steps:
 
 1. Include the necessary header files in your C++ code:
 ```c++
-#include "LongArithmetic/BigInt.h"
+#include "include/BigInt.h"
 ```
 
 2. Link your project with the LongArithmetic library:
