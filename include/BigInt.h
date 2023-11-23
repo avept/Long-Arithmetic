@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 /**
  * @brief A class for representing arbitrarily large integers.
  * 
