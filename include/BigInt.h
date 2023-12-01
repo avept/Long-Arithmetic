@@ -4,19 +4,12 @@
 
 #pragma once
 
-/**
- * @brief A class for representing arbitrarily large integers.
- * 
- * BigInt is a class that provides a way to represent integers of any size. It supports basic arithmetic operations such as addition, subtraction, multiplication, division, and modulo. 
- * It also supports comparison operators and output stream operator. 
- * The class is implemented using a vector of 64-bit unsigned integers to store the digits of the number.
- */
 class BigInt 
 {
 public:
     explicit BigInt();
     explicit BigInt(const std::string& bigNumber);
-    explicit BigInt(const uint_fast64_t number);
+    BigInt(const uint_fast64_t number);
     BigInt(const BigInt& bigNumber) = default;
     BigInt(BigInt&& bigNumber) noexcept = default;
     ~BigInt() = default;
@@ -28,11 +21,11 @@ public:
 
     int64_t msb() const noexcept;
 
-    BigInt operator +(const BigInt& rhs);
-    BigInt operator -(const BigInt& rhs);
-    BigInt operator *(const BigInt& rhs);
-    BigInt operator /(const BigInt& rhs);
-    BigInt operator %(const BigInt& rhs);
+    BigInt operator +(const BigInt& rhs) const;
+    BigInt operator -(const BigInt& rhs) const;
+    BigInt operator *(const BigInt& rhs) const;
+    BigInt operator /(const BigInt& rhs) const;
+    BigInt operator %(const BigInt& rhs) const;
 
     BigInt& operator =(const BigInt& rhs) = default;
     BigInt& operator =(BigInt&& rhs) noexcept = default;
@@ -45,6 +38,8 @@ public:
     bool operator !=(const BigInt& rhs) const;
 
     friend std::ostream& operator <<(std::ostream& out, const BigInt& bigInt);
+
+    BigInt gcd(const BigInt& rhs) const;
 
 private:
     /* functions */
