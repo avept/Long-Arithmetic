@@ -1,5 +1,6 @@
 add_library(LongArithmetic
     BigInt.cpp
+    BigIntModule.cpp
 )
 
 target_include_directories(LongArithmetic

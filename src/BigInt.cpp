@@ -58,7 +58,7 @@ std::vector<std::string> BigInt::splitNumberToParts(const std::string_view& str)
     return splitsStr;
 }
 
-BigInt BigInt::operator+(const BigInt& rhs)
+BigInt BigInt::operator+(const BigInt& rhs) const
 {
     BigInt result;
     uint_fast64_t carry = 0;
@@ -108,7 +108,7 @@ BigInt BigInt::operator+(const BigInt& rhs)
     return result;
 }
 
-BigInt BigInt::operator-(const BigInt& rhs)
+BigInt BigInt::operator-(const BigInt& rhs) const
 {
     if(rhs > *this) 
     {
@@ -156,7 +156,7 @@ BigInt BigInt::operator-(const BigInt& rhs)
     return result;
 }
 
-BigInt BigInt::operator*(const BigInt& rhs)
+BigInt BigInt::operator*(const BigInt& rhs) const
 {
     BigInt result;
 
@@ -170,12 +170,12 @@ BigInt BigInt::operator*(const BigInt& rhs)
     return result;
 }
 
-BigInt BigInt::operator/(const BigInt& rhs)
+BigInt BigInt::operator/(const BigInt& rhs) const
 {    
     return longDivMod(rhs).first;
 }
 
-BigInt BigInt::operator%(const BigInt& rhs)
+BigInt BigInt::operator%(const BigInt& rhs) const
 {
     return longDivMod(rhs).second;
 }
@@ -194,6 +194,52 @@ bool BigInt::operator == (const BigInt& rhs) const
 bool BigInt::operator != (const BigInt& rhs) const
 {
     return !(*this == rhs);
+}
+
+BigInt BigInt::gcd(const BigInt& rhs) const
+{
+    if((*this) == BigInt(0) || rhs == BigInt(0))
+    {
+        return BigInt(0);
+    }
+
+    BigInt d(1);
+    BigInt a = *this;
+    BigInt b = rhs;
+
+    while((a % 2 == 0) && (b % 2 == 0))
+    {
+        a = a / 2;
+        b = b / 2;
+        d = d * 2;
+    }
+
+    while(a % 2 == 0)
+    {
+        a = a / 2;
+    }
+
+    while(b != 0)
+    {
+        while(b % 2 == 0)
+        {
+            b = b / 2;
+        }
+
+        a = std::min(a, b);
+
+        if(a >= b)
+        {
+            b = a - b;
+        }
+        else
+        {
+            b = b - a;
+        }
+    }
+
+    d = d * a;
+    return d;
 }
 
 bool BigInt::operator > (const BigInt& rhs) const
@@ -405,7 +451,6 @@ std::size_t BigInt::bitLength() const noexcept
     auto lastElementInBinary = std::bitset<32>(m_data.back()).to_string();
     std::size_t bitsCountOfLastElement = lastElementInBinary.erase(0, std::min(lastElementInBinary.find_first_not_of('0'),
                                                                         lastElementInBinary.size() - 1)).size();
-
     return bitsCountWithoutLast + bitsCountOfLastElement;
 }
 
