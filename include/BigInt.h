@@ -15,8 +15,9 @@ public:
     ~BigInt() = default;
     
     std::size_t size() const noexcept;
+    std::size_t digitsCount() const noexcept;
 
-    BigInt square() noexcept;
+    BigInt square() const noexcept;
     BigInt longPower(const BigInt& power) noexcept;
 
     int64_t msb() const noexcept;
@@ -40,6 +41,15 @@ public:
     friend std::ostream& operator <<(std::ostream& out, const BigInt& bigInt);
 
     BigInt gcd(const BigInt& rhs) const;
+    BigInt lcm(const BigInt& rhs) const;
+
+    std::string binaryString() const noexcept;
+    BigInt randomNumber(const int64_t digitsCount) noexcept;
+
+    BigInt barretReduction(const BigInt& module, const BigInt& mu);
+
+    static BigInt evaluateMu(const BigInt& module) noexcept;
+    void evaluateTime() const noexcept;
 
 private:
     /* functions */
@@ -47,14 +57,15 @@ private:
     BigInt longMulOneDigit(const BigInt& lhs, const uint_fast64_t number) const noexcept;
     BigInt longShiftDigitsToHigh(const BigInt& number, const uint_fast64_t widthShift) const noexcept;
     BigInt longShiftBitsToHigh(const BigInt& number, int_fast64_t widthShift) const noexcept;
+    BigInt longShiftBitsToDown(const BigInt& number, int_fast64_t widthShift) const noexcept;
 
     std::pair<BigInt, BigInt> longDivMod(const BigInt& rhs) const noexcept;
 
-    std::string binaryString() const noexcept;
 
     std::size_t bitLength() const noexcept;
     void normalize() noexcept;
     std::string normalize(const std::string& str) const noexcept;
+
 
     /* magic constants */
     static constexpr std::size_t digitsCountInNumber = 8; // number system divide to the number of bits in one hex ( 64 / 4 )
