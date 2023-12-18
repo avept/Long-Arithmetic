@@ -11,6 +11,7 @@
 #include <thread>
 #include <sstream>
 #include <iomanip>
+#include <random>
 
 BigInt::BigInt() : m_countOfPartsInNumber(0) 
 { 
@@ -41,6 +42,16 @@ BigInt::BigInt(const uint_fast64_t number) : m_countOfPartsInNumber(1)
 std::size_t BigInt::size() const noexcept
 {
     return m_data.size();
+}
+
+std::size_t BigInt::digitsCount() const noexcept
+{
+    std::size_t count = bitLength();
+
+    if(count % 32 > 0)
+        return (count / 32) + 1;    
+
+    return count / 32;
 }
 
 std::vector<std::string> BigInt::splitNumberToParts(const std::string_view& str) const noexcept
@@ -112,6 +123,8 @@ BigInt BigInt::operator-(const BigInt& rhs) const
 {
     if(rhs > *this) 
     {
+        std::cout << *this << std::endl;
+        std::cout << rhs << std::endl;
         std::cout << "Error: Bigger number is substracted from the smaller, returning smaller one...\n";
         return *this;
     }
@@ -203,30 +216,34 @@ BigInt BigInt::gcd(const BigInt& rhs) const
         return BigInt(0);
     }
 
-    BigInt d(1);
+    int_fast64_t d = 0;
     BigInt a = *this;
     BigInt b = rhs;
 
-    while((a % 2 == 0) && (b % 2 == 0))
+    while(((a.m_data[0] & 1) == 0) && ((b.m_data[0] & 1) == 0))
     {
-        a = a / 2;
-        b = b / 2;
-        d = d * 2;
+        a = longShiftBitsToDown(a, 1);
+        b = longShiftBitsToDown(b, 1);
+        d += 1;
     }
 
-    while(a % 2 == 0)
+    while((a.m_data[0] & 1) == 0)
     {
-        a = a / 2;
+        a = longShiftBitsToDown(a, 1);
     }
 
     while(b != 0)
     {
-        while(b % 2 == 0)
+        while((b.m_data[0] & 1) == 0)
         {
-            b = b / 2;
+            b = longShiftBitsToDown(b, 1);
         }
 
-        a = std::min(a, b);
+        BigInt min = a;
+        if(a > b)
+        {
+            min = b; 
+        }
 
         if(a >= b)
         {
@@ -236,19 +253,36 @@ BigInt BigInt::gcd(const BigInt& rhs) const
         {
             b = b - a;
         }
+        a = min;
     }
 
-    d = d * a;
-    return d;
+    BigInt dd = longShiftBitsToHigh(a, d);
+    return dd;
+}
+
+BigInt BigInt::lcm(const BigInt& rhs) const
+{
+    return ((*this) * rhs) / (*this).gcd(rhs); 
+}
+
+BigInt BigInt::barretReduction(const BigInt& module, const BigInt& mu)
+{
+    std::size_t k = module.digitsCount();
+    BigInt q = longShiftBitsToDown((*this), ((k - 1) * 32));
+    q = q * mu;
+    q = longShiftBitsToDown(q, ((k + 1) * 32));
+
+    BigInt reduction = (*this) - q * module;
+    while(reduction >= module)
+        reduction = reduction - module;
+
+    return reduction;
 }
 
 bool BigInt::operator > (const BigInt& rhs) const
 {
     if(size() == 0 || rhs.size() == 0)
-    {
-        std::cout << "Unknown case" << std::endl;
         return false;
-    }
         
     if(size() > rhs.size())
         return true;
@@ -376,6 +410,36 @@ BigInt BigInt::longShiftBitsToHigh(const BigInt& number, int_fast64_t widthShift
     return result;
 }
 
+BigInt BigInt::longShiftBitsToDown(const BigInt& number, int_fast64_t widthShift) const noexcept
+{
+    if(widthShift <= 0 || number == BigInt(0))
+        return number;
+
+    int_fast64_t remainder = widthShift % BigInt::bitsCount;
+    widthShift /= BigInt::bitsCount;
+    
+    BigInt result = number;
+    for(std::size_t i = 0; i < widthShift; ++i)
+    {
+        result.m_data.erase(result.m_data.begin());
+    }
+
+    if(remainder > 0)
+    {
+        for(std::size_t i = 0; i < remainder; ++i)
+        {
+            for(std::size_t j = 0; j < result.size() - 1; ++j)
+            {
+                result.m_data[j] = ((result.m_data[j] >> 1) ^ ((result.m_data[j + 1] & 1) << (BigInt::bitsCount - 1))) & 0xFFFFFFFF;
+            }
+            result.m_data[result.size() - 1] = (result.m_data[result.size() - 1] >> 1) & 0xFFFFFFFF;
+        }
+    }
+    
+    result.normalize();
+    return result;
+}
+
 std::pair<BigInt, BigInt> BigInt::longDivMod(const BigInt& rhs) const noexcept
 {
     if(*this == rhs)
@@ -411,7 +475,7 @@ std::string BigInt::binaryString() const noexcept
     std::string binaryString;
     for(const auto& it : m_data)
     {
-        for(int j = 31; j >= 0; --j)
+        for(int j = 0; j <= 31; ++j)
         {
             binaryString += (it & (1 << j)) ? '1' : '0';
         }
@@ -420,7 +484,24 @@ std::string BigInt::binaryString() const noexcept
     return normalize(binaryString);
 }
 
-BigInt BigInt::square() noexcept
+BigInt BigInt::randomNumber(const int64_t digitsCount) noexcept
+{
+    if (digitsCount <= 0) 
+        return BigInt(0);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint32_t> distribution(0, UINT32_MAX);
+
+    BigInt number;
+    number.m_data.resize(digitsCount);
+    for (int i = 0; i < digitsCount; i++) 
+        number.m_data.at(i) = distribution(gen);
+
+    return number;
+}
+
+BigInt BigInt::square() const noexcept
 {
     return (*this) * (*this);
 }
@@ -444,7 +525,7 @@ BigInt BigInt::longPower(const BigInt& power) noexcept
 
 std::size_t BigInt::bitLength() const noexcept
 {
-    if(*this == BigInt(0))
+    if(*this == BigInt(0) || m_data.empty())
         return 0;
 
     std::size_t bitsCountWithoutLast = (size() - 1) * BigInt::bitsCount;
@@ -468,12 +549,101 @@ void BigInt::normalize() noexcept
 std::string BigInt::normalize(const std::string& str) const noexcept
 {
    auto binaryString = str;
-    if (std::size_t startPos = binaryString.find_first_not_of('0'); startPos != std::string::npos) 
-        binaryString = binaryString.substr(startPos);
+    if (std::size_t startPos = binaryString.find_last_not_of('0'); startPos != std::string::npos) 
+        binaryString = binaryString.substr(0, startPos + 1);
     else 
         binaryString = "0"; 
 
     return binaryString;
+}
+
+BigInt BigInt::evaluateMu(const BigInt& module) noexcept
+{
+    std::size_t count = module.digitsCount();
+    BigInt mu(1);
+    mu = mu.longShiftBitsToHigh(mu, 2 * 32 * count);
+
+    return mu / module;
+}
+
+void BigInt::evaluateTime() const noexcept
+{
+    std::vector<int64_t> sizes = { 31 };
+
+    for (const auto size : sizes) 
+    {
+        double TotalAdditionTime = 0.0;
+        double TotalSubtractionTime = 0.0;
+        double TotalMultiplicationTime = 0.0;
+        double TotalDivisionTime = 0.0;
+        double TotalReductionTime = 0.0;
+
+        for (int i = 0; i < 100; i++) 
+        {
+            BigInt bi1, bi2;
+            bi1.randomNumber(size);
+            bi2.randomNumber(size);
+
+            auto AdditionStartTime = std::chrono::high_resolution_clock::now();
+            BigInt resultAdd = bi1 + bi2;
+            auto AdditionEndTime = std::chrono::high_resolution_clock::now();
+            auto additionTime = std::chrono::duration_cast<std::chrono::nanoseconds>(AdditionEndTime - AdditionStartTime).count();
+            TotalAdditionTime += additionTime;
+
+            auto SubtractionStartTime = std::chrono::high_resolution_clock::now();
+            BigInt resultSub = bi1 - bi2;
+            auto SubtractionEndTime = std::chrono::high_resolution_clock::now();
+            auto substractionTime = std::chrono::duration_cast<std::chrono::nanoseconds>(SubtractionEndTime - SubtractionStartTime).count();
+            TotalSubtractionTime += substractionTime;
+
+            auto MultiplicationStartTime = std::chrono::high_resolution_clock::now();
+            BigInt resultMul = bi1 * bi2;
+            auto MultiplicationEndTime = std::chrono::high_resolution_clock::now();
+            auto multiplicationTime = std::chrono::duration_cast<std::chrono::nanoseconds>(MultiplicationEndTime - MultiplicationStartTime).count();
+            TotalMultiplicationTime += multiplicationTime;
+
+            auto DivisionStartTime = std::chrono::high_resolution_clock::now();
+            BigInt resultDiv = bi1 / bi2;
+            auto DivisionEndTime = std::chrono::high_resolution_clock::now();
+            auto divisionTime = std::chrono::duration_cast<std::chrono::nanoseconds>(DivisionEndTime - DivisionStartTime).count();
+            TotalDivisionTime += divisionTime;
+
+            auto ReductionStartTime = std::chrono::high_resolution_clock::now();
+            BigInt resultRed = bi1 % bi2;
+            auto ReductionEndTime = std::chrono::high_resolution_clock::now();
+            auto reductionTime = std::chrono::duration_cast<std::chrono::nanoseconds>(ReductionEndTime - ReductionStartTime).count();
+            TotalReductionTime += reductionTime;
+
+            // std::cout << "Size " << size << std::endl;
+            // std::cout << "Addition Time: " << additionTime << " nanoseconds" << std::endl;
+            // std::cout << "Subtraction Time: " << substractionTime << " nanoseconds" << std::endl;
+            // std::cout << "Multiplication Time: " << multiplicationTime << " nanoseconds" << std::endl;
+            // std::cout << "Division Time: " << divisionTime << " nanoseconds" << std::endl;
+            std::cout << "Reduction Time: " << reductionTime << " nanoseconds" << std::endl;
+            std::cout << std::endl;
+        }
+
+        double AverageAdditionTime = TotalAdditionTime / 100.0;
+        double AverageSubtractionTime = TotalSubtractionTime / 100.0;
+        double AverageMultiplicationTime = TotalMultiplicationTime / 100.0;
+        double AverageDivisionTime = TotalDivisionTime / 100.0;
+        double AverageReductionTime = TotalReductionTime / 100.0;
+
+        // std::cout << "Size " << size << std::endl;
+        // std::cout << "Average Addition Time: " << AverageAdditionTime << " nanoseconds" << std::endl;
+        // std::cout << "Average Subtraction Time: " << AverageSubtractionTime << " nanoseconds" << std::endl;
+        // std::cout << "Average Multiplication Time: " << AverageMultiplicationTime << " nanoseconds" << std::endl;
+        // std::cout << "Average Division Time: " << AverageDivisionTime << " nanoseconds" << std::endl;
+        std::cout << "Average Reduction Time: " << AverageReductionTime << " nanoseconds" << std::endl;
+        std::cout << std::endl;
+    }
+
+
+    // auto AdditionStartTime = std::chrono::high_resolution_clock::now();
+    // BigInt resultAdd = bi1 + bi2;
+    // auto AdditionEndTime = std::chrono::high_resolution_clock::now();
+    // TotalAdditionTime += std::chrono::duration_cast<std::chrono::nanoseconds>(AdditionEndTime - AdditionStartTime).count();
+
 }
 
 int64_t BigInt::msb() const noexcept

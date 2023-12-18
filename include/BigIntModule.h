@@ -18,6 +18,9 @@ public:
     BigIntModule operator*(const BigIntModule& rhs) const;
     BigIntModule operator/(const BigIntModule& rhs) const;
 
+    BigIntModule square() const;
+    BigIntModule longModPowerBarret(const BigIntModule& degree);
+
     friend std::ostream& operator<<(std::ostream& out, const BigIntModule& bigInt);
 
 private:    
